@@ -4,6 +4,8 @@ github.com/phroun/pawscript v0.2.14-alpha h1:Q2w896GpN1D72m8j5BeNHYdKUzKGbJIen97
 github.com/phroun/pawscript v0.2.14-alpha/go.mod h1:HrX9YJOxfwG8Q6NXjxsDmDmfQPsIrkrOcK1ps94h87s=
 github.com/phroun/pawscript v0.2.14-alpha.0.20260911021457-131c1b5f8f18 h1:S/P9NbudPSG5jlQltNcVoborxhwWtGjwr/uprRQfiq4=
 github.com/phroun/pawscript v0.2.14-alpha.0.20260911021457-131c1b5f8f18/go.mod h1:HrX9YJOxfwG8Q6NXjxsDmDmfQPsIrkrOcK1ps94h87s=
+github.com/phroun/pawscript v0.2.15-alpha h1:wgx4jzNyeGQlxu9OgcOyyKfEFJ0NjhfkeF8eYWkQUGw=
+github.com/phroun/pawscript v0.2.15-alpha/go.mod h1:HrX9YJOxfwG8Q6NXjxsDmDmfQPsIrkrOcK1ps94h87s=
 golang.org/x/sys v0.38.0 h1:3yZWxaJjBmCWXqhN1qh02AkOnCQ1poK6oF+a7xWL6Gc=
 golang.org/x/sys v0.38.0/go.mod h1:OgkHotnGiDImocRcuBABYBEXf8A9a87e/uXjp9XT3ks=
 golang.org/x/term v0.37.0 h1:8EGAD0qCmHYZg6J17DvsMy9/wJ7/D/4pV/wfnld5lTU=
