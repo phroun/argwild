@@ -137,8 +137,9 @@ type Value struct {
 	IsFloat bool
 
 	// PSL holds the parsed PSL structure when Kind == KindPSL. It is a
-	// pawscript PSLList or PSLMap (both are Go maps/slices of interface{}), so
-	// it embeds directly into a serialized parse tree.
+	// *pawscript.PSLNode, which carries the block's ordered items in Items and
+	// its named members in Named, and embeds directly into a serialized parse
+	// tree.
 	PSL interface{}
 }
 

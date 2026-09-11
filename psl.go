@@ -6,41 +6,26 @@ import (
 	ps "github.com/phroun/pawscript"
 )
 
-// parsePSLBlock parses the inner text of a "(...)" argument block into a PSL
-// value using the pawscript library.
+// parsePSLBlock parses the inner text of a "(...)" argument block with the
+// pawscript library.
 //
-// A block is treated as a list when it has positional items and as a map when
-// it has named items. This mirrors PSL's two shapes (PSLList and PSLMap). For a
-// block that mixes positional and named items, the positional list is returned
-// (pawscript's list parser drops names); such blocks are unusual in argument
-// values.
+// A PSL list holds an ordered sequence and named members side by side, and an
+// argument block may use either or both: (1, 2, 3), (name: "x", count: 5), or
+// (1, name: "x"). The node it comes back as holds all of it, so a block that
+// mixes the two is not half-read.
 func parsePSLBlock(inner string) (interface{}, error) {
-	wrapped := "(" + inner + ")"
-
-	list, listErr := ps.ParsePSLList(wrapped)
-	if listErr == nil && len(list) > 0 {
-		return list, nil
+	n, err := ps.ParsePSL("(" + inner + ")")
+	if err != nil {
+		return nil, err
 	}
-
-	m, mapErr := ps.ParsePSL(wrapped)
-	if mapErr == nil && len(m) > 0 {
-		return m, nil
-	}
-
-	// Empty or names-only-but-unparsed: prefer a successful empty list, then a
-	// successful (possibly empty) map, then surface whichever error occurred.
-	if listErr == nil {
-		return list, nil
-	}
-	if mapErr == nil {
-		return m, nil
-	}
-	return nil, listErr
+	return n, nil
 }
 
 // pslToString serializes a parsed PSL value back to its source form.
 func pslToString(v interface{}) string {
 	switch t := v.(type) {
+	case *ps.PSLNode:
+		return ps.SerializePSLNode(t)
 	case ps.PSLList:
 		return ps.SerializePSLList(t)
 	case ps.PSLMap:
