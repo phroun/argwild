@@ -216,9 +216,9 @@ func TestPSLValues(t *testing.T) {
 	if sw.Values[0].Kind != KindPSL {
 		t.Fatalf("-o(1, 2, 3) => %v", sw.Values[0])
 	}
-	list, ok := sw.Values[0].PSL.(ps.PSLList)
-	if !ok || len(list) != 3 {
-		t.Fatalf("PSL not a 3-item list: %#v", sw.Values[0].PSL)
+	block, ok := sw.Values[0].PSL.(*ps.PSLNode)
+	if !ok || block.Len() != 3 {
+		t.Fatalf("PSL not a 3-item block: %#v", sw.Values[0].PSL)
 	}
 
 	// PSL blocks in any value position, including a comma chain of blocks.
@@ -226,19 +226,35 @@ func TestPSLValues(t *testing.T) {
 	if len(sw.Values) != 2 || sw.Values[0].Kind != KindPSL || sw.Values[1].Kind != KindPSL {
 		t.Fatalf("-o(1,2),(3,4) => %v", sw.Values)
 	}
-	l2 := sw.Values[1].PSL.(ps.PSLList)
-	if len(l2) != 2 || l2[0] != int64(3) {
-		t.Errorf("second PSL block => %#v", l2)
+	second := sw.Values[1].PSL.(*ps.PSLNode)
+	if v, _ := second.Item(0); second.Len() != 2 || v != int64(3) {
+		t.Errorf("second PSL block => %#v", second)
 	}
 
-	// A named PSL block becomes a map.
+	// A named PSL block keeps its names.
 	sw = oneSwitch(t, `-o(name: "test", count: 5)`)
-	m, ok := sw.Values[0].PSL.(ps.PSLMap)
+	named, ok := sw.Values[0].PSL.(*ps.PSLNode)
 	if !ok {
 		t.Fatalf("named PSL block => %#v", sw.Values[0].PSL)
 	}
-	if m.GetInt("count", -1) != 5 || m.GetString("name", "") != "test" {
-		t.Errorf("PSL map => %#v", m)
+	if m := named.Map(); m.GetInt("count", -1) != 5 || m.GetString("name", "") != "test" {
+		t.Errorf("named PSL block => %#v", m)
+	}
+
+	// A block that mixes the two keeps both halves.
+	sw = oneSwitch(t, `-o(1, 2, name: "test")`)
+	mixed, ok := sw.Values[0].PSL.(*ps.PSLNode)
+	if !ok {
+		t.Fatalf("mixed PSL block => %#v", sw.Values[0].PSL)
+	}
+	if mixed.Len() != 2 {
+		t.Errorf("mixed PSL block kept %d ordered items, want 2: %#v", mixed.Len(), mixed.Items)
+	}
+	if v, _ := mixed.Get("name"); v != "test" {
+		t.Errorf("mixed PSL block's name came back as %#v", v)
+	}
+	if out := sw.Values[0].AsString(); out != `(name: "test", 1, 2)` {
+		t.Errorf("mixed PSL block serializes as %s", out)
 	}
 }
 
@@ -324,18 +340,22 @@ func TestRoundTripPSL(t *testing.T) {
 	r := mustParse(t, src)
 
 	out := r.ToPSLString(false)
-	back, err := ps.ParsePSLList(out)
+	doc, err := ps.ParsePSL(out)
 	if err != nil {
 		t.Fatalf("reparse ToPSLString: %v\n%s", err, out)
 	}
-	if len(back) != len(r.Stanzas) {
-		t.Fatalf("round-trip stanza count %d != %d\n%s", len(back), len(r.Stanzas), out)
+	if doc.Len() != len(r.Stanzas) {
+		t.Fatalf("round-trip stanza count %d != %d\n%s", doc.Len(), len(r.Stanzas), out)
 	}
 
-	// Spot-check: the first stanza is an args map with two switches.
-	first, ok := back[0].(ps.PSLMap)
-	if !ok || first.GetString("kind", "") != "args" {
-		t.Fatalf("first stanza => %#v", back[0])
+	// Spot-check: the first stanza is an args stanza with two switches.
+	stanza, ok := doc.Child(0)
+	if !ok {
+		t.Fatalf("first stanza => %#v", doc.Items[0])
+	}
+	first := stanza.Map()
+	if first.GetString("kind", "") != "args" {
+		t.Fatalf("first stanza => %#v", first)
 	}
 	if items := first.GetItems("switches"); len(items) != 2 {
 		t.Errorf("first arg set switches => %#v", first["switches"])
@@ -345,5 +365,43 @@ func TestRoundTripPSL(t *testing.T) {
 	pretty := r.ToPSLString(true)
 	if pretty == "" {
 		t.Error("pretty output empty")
+	}
+}
+
+// A PSL block argument survives the round trip as the list it is, rather than
+// as a rendering of the Go value it was carried in.
+func TestRoundTripKeepsAPSLBlockAsAList(t *testing.T) {
+	r := mustParse(t, `-c(codec: "x264", 2)`)
+	out := r.ToPSLString(false)
+
+	doc, err := ps.ParsePSL(out)
+	if err != nil {
+		t.Fatalf("reparse ToPSLString: %v\n%s", err, out)
+	}
+	stanza, ok := doc.Child(0)
+	if !ok {
+		t.Fatalf("first stanza is not a list: %s", out)
+	}
+	switches := stanza.Map().GetItems("switches")
+	if len(switches) != 1 {
+		t.Fatalf("the arg set has %d switches: %s", len(switches), out)
+	}
+	sw, ok := switches[0].(*ps.PSLNode)
+	if !ok {
+		t.Fatalf("the switch came back as %T: %s", switches[0], out)
+	}
+	values := sw.Map().GetItems("values")
+	if len(values) != 1 {
+		t.Fatalf("the switch has %d values: %s", len(values), out)
+	}
+	block, ok := values[0].(*ps.PSLNode)
+	if !ok {
+		t.Fatalf("the PSL block came back as %T (%#v): %s", values[0], values[0], out)
+	}
+	if v, _ := block.Get("codec"); v != "x264" {
+		t.Errorf("the block's codec came back as %#v: %s", v, out)
+	}
+	if v, _ := block.Item(0); v != int64(2) {
+		t.Errorf("the block's ordered item came back as %#v: %s", v, out)
 	}
 }

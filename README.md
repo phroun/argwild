@@ -164,7 +164,8 @@ r.ArgSets()  // []*ArgSet in order
 ```
 
 `Value.Interface()` returns a plain Go value (`string`, `int64`, `float64`, or a
-pawscript `PSLList`/`PSLMap`); `Value.AsString()` returns a display string.
+`*pawscript.PSLNode` for a PSL block); `Value.AsString()` returns a display
+string.
 
 ## PSL round-trip
 
@@ -186,7 +187,7 @@ switch:   (lead: "-"|"--"|"+", name: <string>,
 ```
 
 This serializes with pawscript's PSL serializer and reparses losslessly with
-`pawscript.ParsePSLList`.
+`pawscript.ParsePSL`, whose result holds the stanzas in `Items`.
 
 ## License
 
